@@ -59,14 +59,18 @@ export default function Navbar({ user, onLogout }) {
         >
           <NavLink to="/">Home</NavLink>
           <NavLink to="/dashboard">Dashboard</NavLink>
-
+          
           {!user ? (
-            <>
-              <NavLink to="/login">Login</NavLink>
-              <NavLink to="/register">Register</NavLink>
-            </>
-          ) : (
-            <>
+  <>
+    <NavLink to="/login">Login</NavLink>
+    <NavLink to="/register">Register</NavLink>
+  </>
+) : (
+  <>
+    {/* ✅ Show only for customers */}
+    {user?.role === "customer" && (
+      <NavLink to="/order">Create Order</NavLink>
+    )}
               {/* Profile Avatar & Dropdown */}
               <div className="relative">
                 <button

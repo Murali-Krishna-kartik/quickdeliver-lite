@@ -1,19 +1,28 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 
 export default function Profile({ user, onLogout }) {
   const navigate = useNavigate();
+  const [orderCount, setOrderCount] = useState(0);
 
-  // Redirect if no user is logged in
   useEffect(() => {
     if (!user) {
       navigate("/login");
+    } else {
+      // Fetch order count
+      axios
+        .get("http://localhost:5000/api/auth/profile", { withCredentials: true })
+        .then((res) => {
+          setOrderCount(res.data.deliveryCount || 0);
+        })
+        .catch((err) => {
+          console.error("Failed to fetch delivery count", err);
+        });
     }
   }, [user, navigate]);
 
-  if (!user) {
-    return null; // or a loading spinner
-  }
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -100,11 +109,11 @@ export default function Profile({ user, onLogout }) {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="bg-white p-3 rounded-md shadow text-center">
                   <p className="text-sm text-gray-500">Joined</p>
-                  <p className="font-medium">2 months ago</p>
+                  <p className="font-medium">1 day ago</p>
                 </div>
                 <div className="bg-white p-3 rounded-md shadow text-center">
                   <p className="text-sm text-gray-500">Orders</p>
-                  <p className="font-medium">12</p>
+                  <p className="font-medium">{orderCount}</p>
                 </div>
                 <div className="bg-white p-3 rounded-md shadow text-center">
                   <p className="text-sm text-gray-500">Status</p>

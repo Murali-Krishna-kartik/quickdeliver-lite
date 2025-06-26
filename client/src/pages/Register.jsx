@@ -8,7 +8,8 @@ export default function Register({ setUser }) {
     name: "",
     email: "",
     password: "",
-    role: "customer",
+    phone:"",
+    role: "customer"
   });
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -17,28 +18,36 @@ export default function Register({ setUser }) {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
- const handleSubmit = async (e) => {
+// Register.jsx
+const handleSubmit = async (e) => {
   e.preventDefault();
   setError("");
 
-  const { name, email, password, role } = form;
-
-  if (password.length < 8) {
-    return setError("Password must be at least 8 characters long.");
-  }
-
   try {
-    const res = await axios.post("http://localhost:5000/api/auth/register", form, {
-      withCredentials: true
-    });
+    const res = await axios.post(
+      "http://localhost:5000/api/auth/register", 
+      form,
+      {
+        withCredentials: true,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    setUser(res.data.user);  
-    navigate("/dashboard");
+    if (res.data.user) {
+      setUser(res.data.user);
+      navigate("/dashboard");
+    }
   } catch (err) {
-    setError(err.response?.data?.error || "Registration failed");
+    console.error('Registration error:', err);
+    setError(
+      err.response?.data?.error || 
+      err.message || 
+      "Registration failed. Please try again."
+    );
   }
 };
-
   return (
     <div
       className="flex items-center justify-center min-h-screen bg-cover bg-center relative"
@@ -87,6 +96,15 @@ export default function Register({ setUser }) {
           required
           className="w-full mb-4 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
         />
+        <input
+  type="tel"
+  name="phone"
+  value={form.phone}
+  onChange={handleChange}
+  placeholder="Phone Number"
+  required
+  className="w-full mb-4 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+/>
 
         <select
           name="role"

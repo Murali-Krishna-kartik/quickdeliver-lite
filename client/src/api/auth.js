@@ -9,10 +9,10 @@ export async function login(email, password) {
   return res.data;
 }
 
-export async function register({ name, email, password, role }) {
+export async function register({ name, email, password,phone, role }) {
   const res = await axios.post(
     "http://localhost:5000/api/auth/register",
-    { name, email, password, role },
+    { name, email, password,phone, role },
     { withCredentials: true }
   );
   return res.data;

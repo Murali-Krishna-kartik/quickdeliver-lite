@@ -6,20 +6,28 @@ const jwt = require('jsonwebtoken');
 const setTokenCookie = (res, token) => {
   res.cookie('token', token, {
     httpOnly: true,
-    secure: false, 
-    sameSite: 'Lax', 
-    maxAge: 60 * 60 * 1000 
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 60 * 60 * 1000 // 1 hour
   });
 };
 
+// authController.js
 exports.register = async (req, res) => {
-  const { name, email, password, role } = req.body;
   try {
-    const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ error: 'Email already exists' });
+    const { name, email, password, phone,role } = req.body;
+    
+    // Validation
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
 
-    const user = new User({ name, email, password, role });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    const user = new User({ name, email, password, phone ,role });
     await user.save();
 
     const token = jwt.sign(
@@ -28,12 +36,21 @@ exports.register = async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    setTokenCookie(res, token);
+    // Set cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 3600000 // 1 hour
+    });
 
+    // Send response
     res.status(201).json({
       user: {
+        _id: user._id,
         name: user.name,
         email: user.email,
+        phone:user.phone,
         role: user.role
       }
     });
@@ -42,7 +59,6 @@ exports.register = async (req, res) => {
     res.status(500).json({ error: 'Registration failed' });
   }
 };
-
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {

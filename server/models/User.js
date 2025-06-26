@@ -9,6 +9,16 @@ const userSchema = new mongoose.Schema({
     unique: true,
     match: /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/
   },
+  phone: {
+  type: String,
+  required: true,
+  validate: {
+    validator: function (v) {
+      return /^\d{10}$/.test(v); // Adjust regex as needed for format
+    },
+    message: props => `${props.value} is not a valid phone number!`
+  }
+},
   password: { type: String },
   role: { type: String, enum: ['customer', 'driver'], required: true, default: "customer" },
   googleId: { type: String }  // ✅ NEW

@@ -3,11 +3,15 @@ import { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Login from "./pages/Login";
+import Order from "./pages/Order"; 
 import Register from "./pages/Register";
 import Profile from "./components/Profile";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
+import EditProfile from "./components/EditProfile";
+import ChangePassword from "./components/ChangePassword";
+import GoogleSuccess from "./pages/GoogleSuccess";
 import Home from "./pages/Home";
 import api from "./api/api";
 import { ToastContainer } from "react-toastify";
@@ -19,8 +23,6 @@ import PrivacyPolicy from "./pages/Static/PrivacyPolicy";
 import Licensing from "./pages/Static/Licensing";
 import Contact from "./pages/Static/Contact";
 
-// ✅ Google Success Page
-import GoogleSuccess from "./pages/GoogleSuccess";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -57,11 +59,14 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
+         
           <Route path="/register" element={<Register setUser={setUser} />} />
           <Route
             path="/profile"
             element={<Profile user={user} onLogout={handleLogout} />}
           />
+          <Route path="/settings" element={<EditProfile user={user} setUser={setUser} />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route
             path="/dashboard"
             element={
@@ -74,6 +79,18 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+            <Route
+    path="/order"
+    element={
+      <ProtectedRoute user={user}>
+        {user?.role === "customer" ? (
+          <Order user={user} />
+        ) : (
+          <Navigate to="/dashboard" replace />
+        )}
+      </ProtectedRoute>
+    }
+  />
 
           {/* ✅ Google OAuth Redirect Handler */}
           <Route

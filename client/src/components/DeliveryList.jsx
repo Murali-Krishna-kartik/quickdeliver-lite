@@ -1,26 +1,115 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/api";
+import { toast } from "react-toastify";
+import DeliveryDetailsModal from "./modals/DeliveryDetailsModal";
+import CancelConfirmationModal from "./modals/CancelConfirmationModal";
+import DeliveryCard from "./modals/DeliveryCard";
 
-const statuses = ["Pending", "Accepted", "In-Transit", "Completed"];
+const statuses = ["All", "Pending", "Accepted", "In-Transit", "Completed"];
+
+// Export this as it's used in the modal components
+export const getStatusColor = (status) => {
+  switch (status) {
+    case "Pending":
+      return "bg-yellow-100 text-yellow-800";
+    case "Accepted":
+      return "bg-blue-100 text-blue-800";
+    case "In-Transit":
+      return "bg-purple-100 text-purple-800";
+    case "Completed":
+      return "bg-green-100 text-green-800";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
 
 const DeliveryList = ({ user }) => {
   const [deliveries, setDeliveries] = useState([]);
-  const [selectedStatus, setSelectedStatus] = useState("Pending");
+  const [selectedStatus, setSelectedStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDelivery, setSelectedDelivery] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCancelConfirmOpen, setIsCancelConfirmOpen] = useState(false);
+  const [deliveryToCancel, setDeliveryToCancel] = useState(null);
 
   const fetchDeliveries = async () => {
     try {
-      let url = `/deliveries?createdBy=${user._id}&status=${selectedStatus}`;
+      let url = `/deliveries?createdBy=${user._id}`;
+      if (selectedStatus !== "All") {
+        url += `&status=${selectedStatus}`;
+      }
       const res = await api.get(url, { withCredentials: true });
       setDeliveries(res.data);
     } catch (err) {
       console.error("Error fetching deliveries:", err);
+      toast.error("Failed to fetch deliveries");
     }
   };
 
   useEffect(() => {
     fetchDeliveries();
   }, [selectedStatus, user._id]);
+
+  const handleCancelDelivery = async () => {
+    try {
+      console.log('Attempting to cancel delivery:', deliveryToCancel);
+      const response = await api.delete(`/deliveries/${deliveryToCancel}`);
+      
+      if (response.status === 200) {
+        fetchDeliveries();
+        setIsModalOpen(false);
+        setIsCancelConfirmOpen(false);
+        toast.success(response.data.message || 'Delivery cancelled successfully');
+      }
+    } catch (err) {
+      console.error('Full error details:', {
+        url: err.config?.url,
+        status: err.response?.status,
+        data: err.response?.data,
+        headers: err.config?.headers
+      });
+      
+      toast.error(
+        err.response?.data?.message || 
+        `Failed to cancel delivery (${err.response?.status || 'no response'})`
+      );
+    }
+  };
+  const submitFeedback = async (deliveryId, feedbackData) => {
+  try {
+    const response = await api.post(
+      `/deliveries/${deliveryId}/feedback`,
+      feedbackData,
+      { withCredentials: true }
+    );
+    
+    // Update the local state to reflect the new feedback
+    setDeliveries(prevDeliveries =>
+      prevDeliveries.map(delivery =>
+        delivery._id === deliveryId
+          ? { ...delivery, feedback: response.data.feedback }
+          : delivery
+      )
+    );
+    
+    toast.success("Feedback submitted successfully!");
+    return response.data;
+  } catch (err) {
+    console.error("Error submitting feedback:", err);
+    throw err.response?.data?.message || "Failed to submit feedback";
+  }
+};
+
+  const openCancelConfirmation = (deliveryId, event) => {
+    event?.stopPropagation();
+    setDeliveryToCancel(deliveryId);
+    setIsCancelConfirmOpen(true);
+  };
+
+  const openDeliveryDetails = (delivery) => {
+    setSelectedDelivery(delivery);
+    setIsModalOpen(true);
+  };
 
   const filteredDeliveries = deliveries.filter((delivery) => {
     const search = searchTerm.toLowerCase();
@@ -34,20 +123,22 @@ const DeliveryList = ({ user }) => {
   });
 
   return (
-    <div className="p-4 w-full">
-      <h2 className="text-2xl font-bold mb-4 text-gray-800">
-        Your Delivery Requests
+    <div className="h-full w-full flex flex-col">
+      <h2 className="text-2xl font-bold mb-4 text-gray-800 text-center">
+        Your Delivery History
       </h2>
 
-      <input
-        type="text"
-        placeholder="Search by address, driver, note, or ID"
-        className="w-full px-4 py-2 mb-4 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring focus:ring-indigo-200"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
+      <div className="flex flex-col md:flex-row gap-4 mb-6 justify-center">
+        <input
+          type="text"
+          placeholder="Search deliveries..."
+          className="flex-grow px-4 py-2 border border-gray-300 rounded shadow-sm focus:outline-none focus:ring focus:ring-indigo-200 md:w-1/2"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap justify-center gap-2 mb-4">
         {statuses.map((status) => (
           <button
             key={status}
@@ -64,89 +155,35 @@ const DeliveryList = ({ user }) => {
       </div>
 
       {filteredDeliveries.length === 0 ? (
-        <div className="bg-white p-4 rounded shadow text-gray-500 text-center">
+        <div className="flex-grow bg-white p-8 rounded-lg shadow text-gray-500 flex items-center justify-center">
           No {selectedStatus.toLowerCase()} deliveries found.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
           {filteredDeliveries.map((delivery) => (
-            <div
+            <DeliveryCard
               key={delivery._id}
-              className="bg-white p-5 rounded-lg shadow-md"
-            >
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-bold text-lg mb-1">Delivery Details</h3>
-                  <p>
-                    <strong>Pickup:</strong> {delivery.pickupAddress}
-                  </p>
-                  <p>
-                    <strong>Dropoff:</strong> {delivery.dropoffAddress}
-                  </p>
-                  <p>
-                    <strong>Note:</strong> {delivery.packageNote || "None"}
-                  </p>
-                  <p>
-                    <strong>Status:</strong>{" "}
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        delivery.status === "Pending"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : delivery.status === "Accepted"
-                          ? "bg-blue-100 text-blue-800"
-                          : delivery.status === "In-Transit"
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-green-100 text-green-800"
-                      }`}
-                    >
-                      {delivery.status}
-                    </span>
-                  </p>
-                  <p>
-                    <strong>Created:</strong>{" "}
-                    {new Date(delivery.createdAt).toLocaleString()}
-                  </p>
-                </div>
-
-                {delivery.acceptedBy && (
-                  <div>
-                    <h3 className="font-bold text-lg mb-1">Driver Details</h3>
-                    <p>
-                      <strong>Name:</strong> {delivery.acceptedBy.name}
-                    </p>
-                    <p>
-                      <strong>Email:</strong> {delivery.acceptedBy.email}
-                    </p>
-                    <p>
-                      <strong>Accepted At:</strong>{" "}
-                      {delivery.acceptedAt
-                        ? new Date(delivery.acceptedAt).toLocaleString()
-                        : "N/A"}
-                    </p>
-                    {delivery.completedAt && (
-                      <p>
-                        <strong>Completed At:</strong>{" "}
-                        {new Date(delivery.completedAt).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {delivery.itemImage && (
-                <div className="mt-4">
-                  <p className="font-bold mb-1">Item Image:</p>
-                  <img
-                    src={`http://localhost:5000/uploads/deliveries/${delivery.itemImage}`}
-                    alt="Item"
-                    className="w-32 h-32 object-cover rounded border"
-                  />
-                </div>
-              )}
-            </div>
+              delivery={delivery}
+              onCardClick={openDeliveryDetails}
+              onCancelClick={openCancelConfirmation}
+            />
           ))}
         </div>
       )}
+
+      <DeliveryDetailsModal
+  isOpen={isModalOpen}
+  onClose={() => setIsModalOpen(false)}
+  delivery={selectedDelivery}
+  onCancelClick={openCancelConfirmation}
+  onSubmitFeedback={submitFeedback}  // Add this line
+/>
+
+      <CancelConfirmationModal
+        isOpen={isCancelConfirmOpen}
+        onClose={() => setIsCancelConfirmOpen(false)}
+        onConfirm={handleCancelDelivery}
+      />
     </div>
   );
 };

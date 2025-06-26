@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import api from '../api/api';
 import toast from 'react-hot-toast';
-import { FaUser, FaMapMarkerAlt, FaClipboard, FaEnvelope, FaTruck, FaCheckCircle } from "react-icons/fa";
+import {
+  FaUser, FaMapMarkerAlt, FaClipboard,
+  FaEnvelope, FaTruck, FaCheckCircle
+} from "react-icons/fa";
 import ConfirmationModal from './ConfirmationModal';
 
 const statusBadgeStyles = {
@@ -19,28 +22,47 @@ const DeliveryCard = ({
   onAcceptSuccess,
 }) => {
   const [loading, setLoading] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showPickupConfirmation, setShowPickupConfirmation] = useState(false);
+  const [showOtpPrompt, setShowOtpPrompt] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
   const [pendingStatus, setPendingStatus] = useState(null);
 
   const handleStatusUpdate = async (newStatus, confirmed = false) => {
     try {
       setLoading(true);
+
+      // Prompt confirmation for pickup
       if (newStatus === "In-Transit" && !confirmed) {
         setPendingStatus(newStatus);
-        setShowConfirmation(true);
+        setShowPickupConfirmation(true);
         setLoading(false);
         return;
       }
 
-      const res = await api.patch(
-        `/deliveries/${delivery._id}/status`,
-        { newStatus, confirmation: confirmed },
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+      // Prompt for OTP before marking as completed
+      if (newStatus === "Completed") {
+        const otpRes = await api.post(`/deliveries/${delivery._id}/send-otp`, {}, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (otpRes.data.success) {
+          toast.success("OTP sent to customer");
+          setShowOtpPrompt(true);
+          setPendingStatus("Completed");
+          setLoading(false);
+          return;
+        } else {
+          throw new Error("Failed to send OTP");
         }
-      );
+      }
+
+      // Proceed with normal status update
+      const res = await api.patch(`/deliveries/${delivery._id}/status`, {
+        newStatus,
+        confirmation: confirmed
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
 
       if (res.data.success) {
         toast.success(`Marked as ${newStatus}`);
@@ -55,18 +77,42 @@ const DeliveryCard = ({
     }
   };
 
+  const handleCompleteWithOtp = async () => {
+    if (!otpInput.trim()) {
+      toast.error("Please enter the OTP");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await api.patch(`/deliveries/${delivery._id}/status`, {
+        newStatus: "Completed",
+        enteredOtp: otpInput.trim()
+      }, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+
+      if (res.data.success) {
+        toast.success("Delivery marked as Completed");
+        setShowOtpPrompt(false);
+        onStatusChange();
+      } else {
+        throw new Error(res.data.message || 'OTP verification failed');
+      }
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAccept = async () => {
     try {
       setLoading(true);
-      const res = await api.patch(
-        `/deliveries/${delivery._id}/accept`,
-        {},
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        }
-      );
+      const res = await api.patch(`/deliveries/${delivery._id}/accept`, {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+
       if (res.data.success) {
         toast.success("Delivery accepted");
         onAcceptSuccess();
@@ -148,16 +194,63 @@ const DeliveryCard = ({
         )}
       </div>
 
-      {showConfirmation && (
+      {delivery.status === "Completed" && delivery.feedback && (
+        <div className="mt-4 border-t pt-3 text-sm text-gray-700">
+          <h4 className="font-semibold text-gray-800 mb-1">Customer Feedback</h4>
+          <p><strong>Rating:</strong> {delivery.feedback.rating} ⭐</p>
+          {delivery.feedback.comment && (
+            <p><strong>Comment:</strong> {delivery.feedback.comment}</p>
+          )}
+          <p className="text-xs text-gray-500 mt-1">
+            Submitted on: {new Date(delivery.feedback.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      )}
+
+      {/* Pickup confirmation */}
+      {showPickupConfirmation && (
         <ConfirmationModal
           title="Confirm Pickup"
           message="Are you sure you've collected the package?"
           onConfirm={() => handleStatusUpdate(pendingStatus, true)}
           onCancel={() => {
             setPendingStatus(null);
-            setShowConfirmation(false);
+            setShowPickupConfirmation(false);
           }}
         />
+      )}
+
+      {/* OTP Prompt Modal */}
+      {showOtpPrompt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-xl w-[90%] max-w-sm shadow-md">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">Enter OTP</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              An OTP has been sent to the customer's email. Please enter it below to confirm delivery completion.
+            </p>
+            <input
+              type="text"
+              value={otpInput}
+              onChange={(e) => setOtpInput(e.target.value)}
+              className="w-full border p-2 rounded-md mb-3"
+              placeholder="Enter OTP"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowOtpPrompt(false)}
+                className="px-4 py-2 text-gray-600 hover:underline"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCompleteWithOtp}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
