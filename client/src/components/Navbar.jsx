@@ -15,13 +15,15 @@ export default function Navbar({ user, onLogout }) {
   return (
     <nav className="sticky top-0 z-50 bg-gradient-to-r from-indigo-600 via-purple-500 to-pink-500 shadow-md">
       <div className="max-w-screen-xl mx-auto px-6 py-4 flex items-center justify-between">
-        {/* Logo with image */}
+        {/* Logo with delivery truck icon */}
         <Link to="/" className="flex items-center space-x-3">
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/5969/5969059.png"
-            alt="QuickDeliver Logo"
-            className="w-10 h-10 object-contain rounded-full bg-white p-1 shadow"
-          />
+     <img
+  src="https://cdn-icons-png.flaticon.com/512/2972/2972185.png"
+  alt="QuickDeliver Logo"
+  className="w-10 h-10 object-contain rounded-full bg-white p-1 shadow"
+/>
+
+
           <span className="text-2xl font-extrabold text-white tracking-tight drop-shadow">
             QuickDeliver Lite
           </span>
@@ -43,9 +45,7 @@ export default function Navbar({ user, onLogout }) {
               strokeLinecap="round"
               strokeLinejoin="round"
               d={
-                isMenuOpen
-                  ? "M6 18L18 6M6 6l12 12"
-                  : "M4 6h16M4 12h16M4 18h16"
+                isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"
               }
             />
           </svg>
@@ -59,18 +59,18 @@ export default function Navbar({ user, onLogout }) {
         >
           <NavLink to="/">Home</NavLink>
           <NavLink to="/dashboard">Dashboard</NavLink>
-          
+
           {!user ? (
-  <>
-    <NavLink to="/login">Login</NavLink>
-    <NavLink to="/register">Register</NavLink>
-  </>
-) : (
-  <>
-    {/* ✅ Show only for customers */}
-    {user?.role === "customer" && (
-      <NavLink to="/order">Create Order</NavLink>
-    )}
+            <>
+              <NavLink to="/login">Login</NavLink>
+              <NavLink to="/register">Register</NavLink>
+            </>
+          ) : (
+            <>
+              {/* ✅ Show only for customers */}
+              {user?.role === "customer" && (
+                <NavLink to="/order">Create Order</NavLink>
+              )}
               {/* Profile Avatar & Dropdown */}
               <div className="relative">
                 <button
@@ -100,7 +100,7 @@ export default function Navbar({ user, onLogout }) {
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded shadow-lg z-50 animate-fade-in">
                     <DropdownItem to="/profile">My Profile</DropdownItem>
                     <DropdownItem to="/settings">Settings</DropdownItem>
-                    <DropdownItem to="/orders">My Orders</DropdownItem>
+                    {/* <DropdownItem to="/orders">My Orders</DropdownItem> */}
                   </div>
                 )}
               </div>
